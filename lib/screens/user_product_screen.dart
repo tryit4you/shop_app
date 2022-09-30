@@ -2,14 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shop_app/providers/products.dart';
 import 'package:shop_app/screens/edit_product_screen.dart';
+import 'package:shop_app/widgets/app_drawer.dart';
 import 'package:shop_app/widgets/user_product_item.dart';
 
-class UserProductScreen extends StatelessWidget {
+class UserProductScreen extends StatefulWidget {
   static const routedName = '/user-product';
-  const UserProductScreen({Key key}) : super(key: key);
-  void delete(String id){
-    
+
+  @override
+  State<UserProductScreen> createState() => _UserProductScreenState();
+}
+
+class _UserProductScreenState extends State<UserProductScreen> {
+  bool _isLoading = false;
+  Future<void> _refreshProducts(BuildContext context) async {
+    setState(() {
+      _isLoading = true;
+    });
+    await Provider.of<Products>(context, listen: false)
+        .fetchAndSetProducts()
+        .then((_) {
+      setState(() {
+        _isLoading = false;
+      });
+    });
   }
+
   @override
   Widget build(BuildContext context) {
     final productsData = Provider.of<Products>(context);
@@ -25,26 +42,28 @@ class UserProductScreen extends StatelessWidget {
             )
           ],
         ),
-        body: Padding(
-          padding: const EdgeInsets.symmetric(
-            vertical: 10,
-          ),
-          child: SingleChildScrollView(
-            child: Container(
-              width: double.infinity,
-              height: MediaQuery.of(context).size.height - 30,
-              child: ListView.builder(
-                  itemCount: productsData.items.length,
-                  itemBuilder: (ctx, i) => Column(
-                        children: [
-                          UserProductItem(
-                              productsData.items[i].id,
-                              productsData.items[i].title,
-                              productsData.items[i].imageUrl),
-                          Divider()
-                        ],
-                      )),
+        drawer: AppDrawer(),
+        body: RefreshIndicator(
+          onRefresh: () => _refreshProducts(context),
+          child: Padding(
+            padding: const EdgeInsets.all(
+              8,
             ),
+            child: _isLoading
+                ? Center(
+                    child: CircularProgressIndicator(),
+                  )
+                : ListView.builder(
+                    itemCount: productsData.items.length,
+                    itemBuilder: (ctx, i) => Column(
+                          children: [
+                            UserProductItem(
+                                productsData.items[i].id,
+                                productsData.items[i].title,
+                                productsData.items[i].imageUrl),
+                            Divider()
+                          ],
+                        )),
           ),
         ));
   }

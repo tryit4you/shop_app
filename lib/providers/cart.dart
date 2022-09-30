@@ -1,4 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:shop_app/models/http_exception.dart';
+import 'dart:convert';
 
 class CartItem {
   final String id;
@@ -14,6 +17,8 @@ class CartItem {
 }
 
 class Cart with ChangeNotifier {
+  final String url =
+      'https://flutter-update-1-d50a4-default-rtdb.firebaseio.com/cart.json';
   Map<String, CartItem> _items = {};
 
   Map<String, CartItem> get items {
@@ -32,13 +37,21 @@ class Cart with ChangeNotifier {
     return total;
   }
 
-  void addItem(
+  Future<void> addItem(
     String productId,
     double price,
     String title,
-  ) {
+  ) async {
     if (_items.containsKey(productId)) {
       //change quantity
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode >= 400) {
+        throw HttpException('server error exception');
+      }
+      //CartItem cartItem = json.decode(response.body) as CartItem;
+
+      // final response = await http.patch(Uri.parse(url),
+      //     body: json.encode({'title': title, 'quantity': 1, 'price': price}));
       _items.update(
           productId,
           (existingCartItem) => CartItem(
@@ -48,10 +61,15 @@ class Cart with ChangeNotifier {
                 price: existingCartItem.price,
               ));
     } else {
+      var product = {};
+      product[productId] = {'title': title, 'quantity': 1, 'price': price};
+
+      final response =
+          await http.post(Uri.parse(url), body: json.encode(product));
       _items.putIfAbsent(
           productId,
           () => CartItem(
-              id: DateTime.now().toString(),
+              id: json.decode(response.body)['name'],
               title: title,
               quantity: 1,
               price: price));
@@ -59,9 +77,25 @@ class Cart with ChangeNotifier {
     notifyListeners();
   }
 
-  void removeItem(String productId) {
-    _items.remove(productId);
-    notifyListeners();
+  Future<void> removeItem(String productId) async {
+    final url =
+        'https://flutter-update-1-d50a4-default-rtdb.firebaseio.com/cart/$productId';
+    final existingCart = _items.containsKey(productId);
+    var existingCartItem = _items[productId];
+    if (existingCart) {
+      _items.remove(existingCartItem);
+      notifyListeners();
+      final response = await http.delete(Uri.parse(url));
+      if (response.statusCode > 400) {
+        _items.putIfAbsent(productId, () => existingCartItem);
+        notifyListeners();
+        throw HttpException('cannot remove cart item');
+      } else {
+        existingCartItem = null;
+      }
+    } else {
+      throw HttpException('cannot find cart item');
+    }
   }
 
   void removeSingleItem(String productId) {
