@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:shop_app/providers/auth.dart';
 import 'package:shop_app/providers/cart.dart';
 import 'package:shop_app/providers/orders.dart';
 import 'package:shop_app/providers/products.dart';
+import 'package:shop_app/screens/auth_screen.dart';
 import 'package:shop_app/screens/cart_screen.dart';
 import 'package:shop_app/screens/orders_screen.dart';
 import 'package:shop_app/screens/product_detail_screen.dart';
+import 'package:shop_app/screens/splash_screen.dart';
 import 'screens/edit_product_screen.dart';
 import 'screens/products_overview_screen.dart';
 import 'package:provider/provider.dart';
@@ -17,33 +20,49 @@ void main() {
 
 class MyApp extends StatelessWidget {
   @override
-  Widget build(BuildContext cotnext) {
+  Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (ctx) => Products(),
+          create: (ctx) => Auth(),
+        ),
+        ChangeNotifierProxyProvider<Auth, Products>(
+          update: (ctx, auth, previousProducts) => Products(
+              auth.token,
+              previousProducts == null ? [] : previousProducts.items,
+              auth.userId),
         ),
         ChangeNotifierProvider(
           create: (ctx) => Cart(),
         ),
-        ChangeNotifierProvider(
-          create: (ctx) => Orders(),
+        ChangeNotifierProxyProvider<Auth, Orders>(
+          update: (ctx, auth, previosOrder) => Orders(auth.token, auth.userId,
+              previosOrder == null ? [] : previosOrder.orders),
         )
       ],
-      child: MaterialApp(
-        title: 'MyShop',
-        theme: ThemeData(
-            primarySwatch: Colors.purple,
-            accentColor: Colors.deepOrange,
-            fontFamily: 'Lato'),
-        home: ProductsOverviewScreen(),
-        routes: {
-          ProductDetailScreen.routedName: (context) => ProductDetailScreen(),
-          CartScreen.routedName: (context) => CartScreen(),
-          OrderScreen.routedName: (context) => OrderScreen(),
-          UserProductScreen.routedName: (context) => UserProductScreen(),
-          EditProductScreen.routedName: (context) => EditProductScreen(),
-        },
+      child: Consumer<Auth>(
+        builder: (ctx, auth, _) => MaterialApp(
+          title: 'MyShop',
+          theme: ThemeData(
+              primarySwatch: Colors.purple,
+              accentColor: Colors.deepOrange,
+              fontFamily: 'Lato'),
+          home: auth.isAuth
+              ? ProductsOverviewScreen()
+              : FutureBuilder(
+                  future: auth.tryAutoLogin(),
+                  builder: (context, snapshot) =>
+                      snapshot.connectionState == ConnectionState.waiting
+                          ? SplashScreen()
+                          : AuthScreen()),
+          routes: {
+            ProductDetailScreen.routedName: (context) => ProductDetailScreen(),
+            CartScreen.routedName: (context) => CartScreen(),
+            OrderScreen.routedName: (context) => OrderScreen(),
+            UserProductScreen.routedName: (context) => UserProductScreen(),
+            EditProductScreen.routedName: (context) => EditProductScreen(),
+          },
+        ),
       ),
     );
   }
