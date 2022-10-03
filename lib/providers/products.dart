@@ -74,7 +74,6 @@ class Products with ChangeNotifier {
       });
       _items = loadedProducts;
     } catch (error) {
-      print(error);
       throw error;
     }
   }
