@@ -33,7 +33,6 @@ class Orders with ChangeNotifier {
     if (extractedData == null) {
       return;
     }
-    print(extractedData);
     extractedData.forEach((orderId, orderData) {
       loadedOrders.add(
         OrderItem(
